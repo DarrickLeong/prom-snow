@@ -21,6 +21,10 @@ const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const SN_USERNAME = process.env.SN_USERNAME;
 const SN_PASSWORD = process.env.SN_PASSWORD;
 
+// SSL Certificate Validation for Axios
+// Set REJECT_UNAUTHORIZED to "false" (string) in env to disable, otherwise defaults to true
+const REJECT_UNAUTHORIZED = !(process.env.REJECT_UNAUTHORIZED === "false");
+
 // App
 const app = express();
 
