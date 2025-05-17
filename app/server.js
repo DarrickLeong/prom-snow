@@ -135,7 +135,7 @@ const closeRecord = async (login,sys_id,alert) => {
     rejectUnauthorized: false,
     data: {
       //"work_notes": alert,
-      "work_notes": `New alert received. Annotations: ${JSON.stringify(alert.annotations, null, 2)}`
+      "work_notes": `New alert received. Annotations: ${JSON.stringify(alert.annotations, null, 2)}`,
       "state": 6,
       "close_notes": "Closed with error resolved from prom", // can be set via prom labels like alert.labels.close_notes 
       "close_code": "Resolved by request" // can be set via prom labels like alert.labels.close_code 
