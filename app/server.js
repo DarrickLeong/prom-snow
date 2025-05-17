@@ -11,22 +11,39 @@ var jsonParser = bodyParser.json()
 const PORT = 8080;
 const HOST = '0.0.0.0';
 
+// --- Configuration from Environment Variables ---
+// ServiceNow Instance URL
+const SN_INSTANCE_URL = process.env.SN_INSTANCE_URL
+
+// Credentials (these should be set in your OpenShift environment via Secrets)
+const CLIENT_ID = process.env.CLIENT_ID;
+const CLIENT_SECRET = process.env.CLIENT_SECRET;
+const SN_USERNAME = process.env.SN_USERNAME;
+const SN_PASSWORD = process.env.SN_PASSWORD;
+
 // App
 const app = express();
 
-
+// --- Check for mandatory credentials ---
+if (!CLIENT_ID || !CLIENT_SECRET || !SN_USERNAME || !SN_PASSWORD) {
+  console.error("FATAL ERROR: Missing one or more required environment variables for ServiceNow authentication (CLIENT_ID, CLIENT_SECRET, SN_USERNAME, SN_PASSWORD).");
+  // In a real app, you might exit or prevent the app from starting fully
+  // For this example, requests will fail at login.
+  // process.exit(1); // Uncomment to make the app exit if credentials are not set
+}
 
 const  itsmLogin = async () => {
+  console.log('Attempting login to ServiceNow instance: ${SN_INSTANCE_URL}');
   const itsmLoginRequestConstruct ={
-    baseURL: "https://<your service now>.service-now.com/oauth_token.do",
+    baseURL: '${SN_INSTANCE_URL}/oauth_token.do',
     method: "POST",
     rejectUnauthorized: false,
     data: querystring.stringify({
       grant_type: 'password',   
-      client_id: '<client_id>', // Process.env.client_id  to obtain from environment variables
-      client_secret: '<client_secret>', // Process.env.client_secret  to obtain from environment variables
-      username: '<username>', // Process.env.username  to obtain from environment variables
-      password: '<password>'  // Process.env.password  to obtain from environment variables
+      client_id: CLIENT_ID, // Process.env.client_id  to obtain from environment variables
+      client_secret: CLIENT_SECRET, // Process.env.client_secret  to obtain from environment variables
+      username: SN_USERNAME, // Process.env.username  to obtain from environment variables
+      password: SN_PASSWORD  // Process.env.password  to obtain from environment variables
       }),
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded'
@@ -44,7 +61,7 @@ const constructUniqueString = (alert) => {
 // This is a search function to unique identify your record , which will decide to create a new or update an existing record
 const searchQuery = async (login,uniqueString) => {
   const itsmSearchConstruct ={
-    baseURL: "https://<your service now>.service-now.com/api/now/table/incident",
+    baseURL: "${SN_INSTANCE_URL}/api/now/table/incident",
     method: "GET",
     rejectUnauthorized: false,
     params: {
@@ -66,13 +83,15 @@ const searchQuery = async (login,uniqueString) => {
 const createRecord = async (login,uniqueString,alert) => {
 
   const itsmCreateConstruct ={
-    baseURL: "https://<your service now>.service-now.com/api/now/table/incident",
+    baseURL: "${SN_INSTANCE_URL}/api/now/table/incident",
     method: "POST",
     rejectUnauthorized: false,
     data: {
       "short_description": uniqueString,
-      "description": alert,// can be set via prom labels like alert.labels.description 
-      "work_notes": alert// can be set via prom labels like alert.labels.work_notes 
+      //"description": alert,// can be set via prom labels like alert.labels.description
+      "description": JSON.stringify(alert, null, 2), // Prettify the JSON 
+      //"work_notes": alert// can be set via prom labels like alert.labels.work_notes
+      "work_notes": `New alert received. Annotations: ${JSON.stringify(alert.annotations, null, 2)}`
       //add more fields as you see fit , PrometheusRule labels are avaiable via alert.label.<LABEL_NAME> environment variables are available as process.env.<ENV_VARIABLE>
     },
     headers: {
@@ -88,11 +107,12 @@ const createRecord = async (login,uniqueString,alert) => {
 const updateRecord = async (login,sys_id,alert) => {
 
   const itsmUpdateConstruct ={
-    baseURL: "https://<your service now>.service-now.com/api/now/table/incident/"+sys_id,
+    baseURL: "${SN_INSTANCE_URL}/api/now/table/incident/"+sys_id,
     method: "PUT",
     rejectUnauthorized: false,
     data: {
-      "work_notes": alert
+      //"work_notes": alert
+      "work_notes": `New alert received. Annotations: ${JSON.stringify(alert.annotations, null, 2)}`
       //add more fields as you see fit , PrometheusRule labels are avaiable via alert.label.<LABEL_NAME> environment variables are available as process.env.<ENV_VARIABLE>
     },
     headers: {
@@ -110,11 +130,12 @@ const closeRecord = async (login,sys_id,alert) => {
 
 
   const itsmCloseConstruct ={
-    baseURL: "https://<your service now>.service-now.com/api/now/table/incident/"+sys_id,
+    baseURL: "${SN_INSTANCE_URL}/api/now/table/incident/"+sys_id,
     method: "PUT",
     rejectUnauthorized: false,
     data: {
-      "work_notes": alert,
+      //"work_notes": alert,
+      "work_notes": `New alert received. Annotations: ${JSON.stringify(alert.annotations, null, 2)}`
       "state": 6,
       "close_notes": "Closed with error resolved from prom", // can be set via prom labels like alert.labels.close_notes 
       "close_code": "Resolved by request" // can be set via prom labels like alert.labels.close_code 

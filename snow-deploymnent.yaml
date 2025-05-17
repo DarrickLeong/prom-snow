@@ -1,0 +1,54 @@
+apiVersion: apps/v1 # Or "apps.openshift.io/v1" for DeploymentConfig
+kind: Deployment # Or "DeploymentConfig"
+metadata:
+  name: servicenow-webhook-app
+  # namespace: your-project-name
+  labels:
+    app: servicenow-webhook
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: servicenow-webhook
+  template:
+    metadata:
+      labels:
+        app: servicenow-webhook
+    spec:
+      containers:
+        - name: snow-parser-app # Your container name
+          image: image-registry.openshift-image-registry.svc:5000/snow-parser/snow-parser-app:latest # e.g., image-registry.openshift-image-registry.svc:5000/your-project-name/your-app-image:latest
+          ports:
+            - containerPort: 8080 # As defined in your Node.js app
+          envFrom: # This injects all keys from the referenced Secret/ConfigMap as environment variables
+            - secretRef:
+                name: snow-credentials # Must match the name of your Secret
+            - configMapRef:
+                name: snow-app-config # Must match the name of your ConfigMap
+          # If you needed to map individual keys to specific environment variable names, you'd use 'env' instead of 'envFrom':
+          # env:
+          #   - name: SERVICE_NOW_CLIENT_ID # Custom environment variable name in the container
+          #     valueFrom:
+          #       secretKeyRef:
+          #         name: servicenow-credentials # Name of the Secret
+          #         key: CLIENT_ID # Key within the Secret
+          #   - name: SERVICE_NOW_CLIENT_SECRET
+          #     valueFrom:
+          #       secretKeyRef:
+          #         name: servicenow-credentials
+          #         key: CLIENT_SECRET
+          #   - name: SERVICE_NOW_USER
+          #     valueFrom:
+          #       secretKeyRef:
+          #         name: servicenow-credentials
+          #         key: SN_USERNAME
+          #   - name: SERVICE_NOW_PASSWORD
+          #     valueFrom:
+          #       secretKeyRef:
+          #         name: servicenow-credentials
+          #         key: SN_PASSWORD
+          #   - name: SERVICE_NOW_INSTANCE_URL
+          #     valueFrom:
+          #       configMapKeyRef:
+          #         name: servicenow-app-config
+          #         key: SN_INSTANCE_URL
